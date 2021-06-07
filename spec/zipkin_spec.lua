@@ -174,6 +174,7 @@ describe("http integration tests with zipkin server [#"
 
     -- kong (http) mock upstream
     route = bp.routes:insert({
+      name = string.lower("route-" .. utils.random_string()),
       service = service,
       hosts = { "http-route" },
       preserve_host = true,
@@ -186,6 +187,7 @@ describe("http integration tests with zipkin server [#"
     }
 
     grpc_route = bp.routes:insert {
+      name = string.lower("grpc-route-" .. utils.random_string()),
       service = grpc_service,
       protocols = { "grpc" },
       hosts = { "grpc-route" },
@@ -200,6 +202,7 @@ describe("http integration tests with zipkin server [#"
     })
 
     tcp_route = bp.routes:insert {
+      name = string.lower("tcp-route-" .. utils.random_string()),
       destinations = { { port = 19000 } },
       protocols = { "tcp" },
       service = tcp_service,
@@ -263,6 +266,7 @@ describe("http integration tests with zipkin server [#"
 
     -- specific assertions for proxy_span
     assert.same(proxy_span.tags["kong.route"], route.id)
+    assert.same(proxy_span.tags["kong.route_name"], route.name)
     assert.same(proxy_span.tags["peer.hostname"], "127.0.0.1")
 
     assert.same({
@@ -291,7 +295,9 @@ describe("http integration tests with zipkin server [#"
     assert.same({
       ["kong.balancer.try"] = "1",
       ["kong.route"] = route.id,
-      ["kong.service"] = route.service.id,
+      ["kong.route_name"] = route.name,
+      ["kong.service"] = service.id,
+      ["kong.service_name"] = service.name,
     }, balancer_span.tags)
   end)
 
@@ -341,6 +347,7 @@ describe("http integration tests with zipkin server [#"
 
     -- specific assertions for proxy_span
     assert.same(proxy_span.tags["kong.route"], grpc_route.id)
+    assert.same(proxy_span.tags["kong.route_name"], grpc_route.name)
     assert.same(proxy_span.tags["peer.hostname"], GRPCBIN_HOST)
 
     -- random ip assigned by Docker to the grpcbin container
@@ -371,7 +378,9 @@ describe("http integration tests with zipkin server [#"
     assert.same({
       ["kong.balancer.try"] = "1",
       ["kong.service"] = grpc_route.service.id,
+      ["kong.service_name"] = grpc_service.name,
       ["kong.route"] = grpc_route.id,
+      ["kong.route_name"] = grpc_route.name,
     }, balancer_span.tags)
   end)
 
@@ -446,7 +455,9 @@ describe("http integration tests with zipkin server [#"
     assert.truthy(pann["kps"] <= pann["kpf"])
     assert.same({
       ["kong.route"] = tcp_route.id,
+      ["kong.route_name"] = tcp_route.name,
       ["kong.service"] = tcp_service.id,
+      ["kong.service_name"] = tcp_service.name,
       ["peer.hostname"] = "127.0.0.1",
     }, proxy_span.tags)
 
@@ -473,7 +484,9 @@ describe("http integration tests with zipkin server [#"
     assert.same({
       ["kong.balancer.try"] = "1",
       ["kong.route"] = tcp_route.id,
+      ["kong.route_name"] = tcp_route.name,
       ["kong.service"] = tcp_service.id,
+      ["kong.service_name"] = tcp_service.name,
     }, balancer_span.tags)
   end)
 
