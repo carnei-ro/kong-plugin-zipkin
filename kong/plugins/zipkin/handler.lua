@@ -48,12 +48,19 @@ local function tag_with_service_and_route(span)
   local service = kong.router.get_service()
   if service and service.id then
     span:set_tag("kong.service", service.id)
-    local route = kong.router.get_route()
-    if route and route.id then
-      span:set_tag("kong.route", route.id)
-    end
     if type(service.name) == "string" then
       span.service_name = service.name
+      span:set_tag("kong.service_name", service.name)
+    end
+  end
+
+  local route = kong.router.get_route()
+  if route then
+    if route.id then
+      span:set_tag("kong.route", route.id)
+    end
+    if type(route.name) == "string" then
+      span:set_tag("kong.route_name", route.name)
     end
   end
 end
@@ -329,7 +336,11 @@ function ZipkinLogHandler:log(conf) -- luacheck: ignore 212
 
       tag_with_service_and_route(span)
 
-      span:finish((try.balancer_start + try.balancer_latency) * 1000)
+      if try.balancer_latency ~= nil then
+        span:finish((try.balancer_start + try.balancer_latency) * 1000)
+      else
+        span:finish(now_mu)
+      end
       reporter:report(span)
     end
     proxy_span:set_tag("peer.hostname", balancer_data.hostname) -- could be nil
